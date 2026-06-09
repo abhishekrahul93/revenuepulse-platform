@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+.env
+.env*.local
+*.log
+vercel
+.vercel
+
+chrome-*/
+edge-*/
+chrome-shot.log
+test-shot.png
+clauserisk-linkedin-sample-report.png
+
+.vercel
