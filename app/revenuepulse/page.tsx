@@ -125,9 +125,9 @@ export default function RevenuePulsePage() {
         <div className="rp-hero-copy">
           <p className="eyebrow">Revenue Growth Analytics Platform</p>
           <h1>RevenuePulse</h1>
-          <h2>Growth metrics, anomaly detection, and stakeholder-ready insight reports in one live demo.</h2>
+          <h2>AI revenue intelligence for growth decisions.</h2>
           <p>
-            Built for Berlin data, BI, growth, product, and analytics engineering roles. RevenuePulse combines SQL-style metric definitions, Python anomaly logic, data-quality checks, and AI-assisted reporting for SaaS and marketplace teams.
+            Monitor revenue movement, detect churn and funnel risk, and ask a grounded AI copilot for source-backed recommendations across MRR, CAC, LTV, retention, and campaign ROI.
           </p>
           <div className="rp-hero-actions">
             <a className="rp-primary-link" href="#rp-dashboard">View live dashboard</a>

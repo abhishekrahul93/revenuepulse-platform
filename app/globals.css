@@ -5624,3 +5624,152 @@ select:focus {
     border-bottom: 0;
   }
 }
+
+/* RevenuePulse recruiter polish pass */
+.rp-shell {
+  background:
+    linear-gradient(180deg, #0e2b2d 0 500px, #f6f8f2 500px 100%);
+}
+
+.rp-nav {
+  width: min(1180px, 100%);
+  min-height: 66px;
+}
+
+.rp-hero,
+.rp-kpi-grid,
+.rp-workspace {
+  width: min(1180px, 100%);
+}
+
+.rp-hero {
+  grid-template-columns: minmax(0, 0.96fr) minmax(360px, 0.74fr);
+  gap: 18px;
+  margin: 18px auto 18px;
+}
+
+.rp-hero-copy,
+.rp-hero-product {
+  box-shadow: 0 22px 58px rgba(5, 24, 25, 0.22);
+}
+
+.rp-hero-copy {
+  gap: 15px;
+  min-height: 410px;
+  padding: clamp(30px, 4vw, 54px);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0)),
+    #12383a;
+}
+
+.rp-hero-copy h1 {
+  max-width: 720px;
+  font-size: clamp(2.95rem, 4.55vw, 4.4rem);
+  line-height: 0.98;
+}
+
+.rp-hero-copy h2 {
+  max-width: 620px;
+  font-size: clamp(1.38rem, 2vw, 1.9rem);
+  line-height: 1.08;
+}
+
+.rp-hero-copy p:not(.eyebrow) {
+  max-width: 660px;
+  color: #d3e3df;
+  font-size: 1rem;
+}
+
+.rp-proof-row {
+  max-width: 680px;
+}
+
+.rp-hero-product {
+  padding: 18px;
+}
+
+.rp-product-top {
+  padding: 13px 14px;
+}
+
+.rp-product-metrics div {
+  min-height: 104px;
+  padding: 13px;
+}
+
+.rp-product-metrics strong {
+  font-size: 1.42rem;
+}
+
+.rp-product-chart {
+  min-height: 128px;
+}
+
+.rp-product-report {
+  padding: 14px;
+}
+
+.rp-kpi-card {
+  min-height: 168px;
+  padding: 18px;
+}
+
+.rp-kpi-card strong {
+  font-size: clamp(1.85rem, 2.4vw, 2.25rem);
+}
+
+@media (max-width: 1100px) {
+  .rp-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .rp-hero-copy {
+    min-height: 360px;
+  }
+
+  .rp-hero-copy h1 {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 680px) {
+  .rp-shell {
+    background:
+      linear-gradient(180deg, #0e2b2d 0 720px, #f6f8f2 720px 100%);
+  }
+
+  .rp-nav {
+    min-height: auto;
+  }
+
+  .rp-hero-copy {
+    gap: 13px;
+    padding: 22px;
+  }
+
+  .rp-hero-copy h1 {
+    font-size: clamp(2.55rem, 11vw, 3.2rem);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .rp-hero-copy h2 {
+    font-size: 1.42rem;
+    line-height: 1.12;
+  }
+
+  .rp-hero-copy p:not(.eyebrow) {
+    font-size: 0.96rem;
+    line-height: 1.55;
+  }
+
+  .rp-primary-link,
+  .rp-secondary-link,
+  .rp-hero-actions button {
+    min-height: 44px;
+  }
+
+  .rp-kpi-card {
+    min-height: auto;
+  }
+}
