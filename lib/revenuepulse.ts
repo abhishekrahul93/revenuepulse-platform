@@ -432,16 +432,24 @@ function evaluateAnswer(checks: string[], hallucinationRisk: CopilotEvaluation["
   };
 }
 
-export function getRevenuePulseCopilotResponse(question: string): CopilotResponse {
-  const normalized = question.toLowerCase();
-  const current = monthlyMetrics[monthlyMetrics.length - 1];
-  const previous = monthlyMetrics[monthlyMetrics.length - 2];
-  const mrrDelta = current.mrr - previous.mrr;
-  const churnRate = (current.churnedCustomers / previous.activeCustomers) * 100;
-  const cac = current.marketingSpend / current.paidConversions;
+type CopilotContext = {
+  question: string;
+  current: MonthlyRevenueMetric;
+  previous: MonthlyRevenueMetric;
+  mrrDelta: number;
+  churnRate: number;
+  cac: number;
+};
 
-  if (/mrr|revenue|real|data issue|data quality|trust/i.test(question)) {
-    return {
+type CopilotHandler = {
+  pattern: RegExp;
+  getResponse: (ctx: CopilotContext) => CopilotResponse;
+};
+
+const copilotHandlers: CopilotHandler[] = [
+  {
+    pattern: /mrr|revenue|real|data issue|data quality|trust/i,
+    getResponse: ({ question, current, previous, mrrDelta }) => ({
       question,
       answer: `The MRR drop looks materially real, not just a reporting artifact. MRR moved ${formatPercent(percentChange(current.mrr, previous.mrr))} from ${previous.month} to ${current.month}, while finance reconciliation is within 0.6% and there are no duplicate active subscription IDs. The caveat is activation tracking: mobile activation events are undercounted by 8.1%, so product-funnel diagnosis needs reconciliation, but the revenue movement itself is trustworthy.`,
       nextActions: [
@@ -465,11 +473,11 @@ export function getRevenuePulseCopilotResponse(question: string): CopilotRespons
         "Avoids claims outside the supplied RevenuePulse snapshot."
       ]),
       source: "grounded-demo-engine"
-    };
-  }
-
-  if (/churn|retention|customer/i.test(normalized)) {
-    return {
+    })
+  },
+  {
+    pattern: /churn|retention|customer/i,
+    getResponse: ({ question, current, previous, churnRate }) => ({
       question,
       answer: `Churn increased because the May cohort has a real retention issue concentrated in Seed SaaS customers. Churned accounts rose from ${previous.churnedCustomers} to ${current.churnedCustomers}, taking gross churn to ${formatPercent(churnRate)}. The segment table shows Seed SaaS has the weakest customer health: 8.9% churn, 57% activation, and 91% net revenue retention. That points to onboarding and early value realization, not only pricing or seasonality.`,
       nextActions: [
@@ -493,11 +501,11 @@ export function getRevenuePulseCopilotResponse(question: string): CopilotRespons
         "Includes an operational next step."
       ]),
       source: "grounded-demo-engine"
-    };
-  }
-
-  if (/channel|campaign|spend|cac|roi|cut|marketing/i.test(normalized)) {
-    return {
+    })
+  },
+  {
+    pattern: /channel|campaign|spend|cac|roi|cut|marketing/i,
+    getResponse: ({ question }) => ({
       question,
       answer: `Cut or pause Paid Social first, then review Paid Search. Both channels have high CAC at ${formatCurrency(458)} per customer, but Paid Social has the weakest ROI at 1.8x versus Paid Search at 2.1x. Organic and Partner channels are stronger alternatives, with much lower CAC and higher ROI. The safer move is not to stop all paid spend; it is to pause the weakest ad sets and reallocate test budget to Partner and Organic while attribution gaps are fixed.`,
       nextActions: [
@@ -522,9 +530,12 @@ export function getRevenuePulseCopilotResponse(question: string): CopilotRespons
         "Mentions attribution caveat before budget decisions."
       ]),
       source: "grounded-demo-engine"
-    };
+    })
   }
+];
 
+function getDefaultCopilotResponse(ctx: CopilotContext): CopilotResponse {
+  const { question, mrrDelta, churnRate, cac } = ctx;
   return {
     question,
     answer: `This week the CEO should treat May as a revenue-growth incident: MRR declined by ${formatCurrency(Math.abs(mrrDelta))}, churn rose to ${formatPercent(churnRate)}, activation weakened, and CAC increased to ${formatCurrency(cac)}. The most important leadership decision is to stop scaling inefficient acquisition until retention and activation are stabilized. The revenue data is trustworthy enough to act on, but the activation event mismatch should be fixed before assigning final product blame.`,
@@ -552,6 +563,27 @@ export function getRevenuePulseCopilotResponse(question: string): CopilotRespons
     ]),
     source: "grounded-demo-engine"
   };
+}
+
+export function getRevenuePulseCopilotResponse(question: string): CopilotResponse {
+  const current = monthlyMetrics[monthlyMetrics.length - 1];
+  const previous = monthlyMetrics[monthlyMetrics.length - 2];
+
+  const ctx: CopilotContext = {
+    question,
+    current,
+    previous,
+    mrrDelta: current.mrr - previous.mrr,
+    churnRate: (current.churnedCustomers / previous.activeCustomers) * 100,
+    cac: current.marketingSpend / current.paidConversions
+  };
+
+  const handler = copilotHandlers.find(h => h.pattern.test(question));
+  if (handler) {
+    return handler.getResponse(ctx);
+  }
+
+  return getDefaultCopilotResponse(ctx);
 }
 
 export function getRevenuePulseSnapshot(): RevenuePulseSnapshot {
