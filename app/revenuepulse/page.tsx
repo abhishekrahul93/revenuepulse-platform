@@ -55,7 +55,7 @@ export default function RevenuePulsePage() {
   const [copilotResponse, setCopilotResponse] = useState<CopilotResponse>(getRevenuePulseCopilotResponse(snapshot.copilotQuestions[0].question));
   const [copilotState, setCopilotState] = useState<CopilotState>("idle");
 
-  const maxMrr = useMemo(() => Math.max(...snapshot.monthlyMetrics.map((month) => month.mrr)), []);
+  const maxMrr = useMemo(() => snapshot.monthlyMetrics.reduce((max, month) => Math.max(max, month.mrr), -Infinity), []);
   const latest = snapshot.monthlyMetrics[snapshot.monthlyMetrics.length - 1];
   const previous = snapshot.monthlyMetrics[snapshot.monthlyMetrics.length - 2];
 
