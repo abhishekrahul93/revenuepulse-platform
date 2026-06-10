@@ -104,7 +104,22 @@ function getOpenAIKey() {
 
 export async function POST(request: Request) {
   const payload = (await request.json().catch(() => ({}))) as CopilotRequest;
-  const question = payload.question?.trim() || "What should the CEO do this week?";
+  let rawQuestion = payload.question || "";
+
+  // Basic prompt injection & context stuffing mitigation
+  // 1. Enforce max length
+  if (rawQuestion.length > 500) {
+    rawQuestion = rawQuestion.slice(0, 500);
+  }
+
+  // 2. Strip potential system-level control phrases and markdown blocks that might break JSON
+  rawQuestion = rawQuestion
+    .replace(/(ignore|disregard) (all )?(previous )?(instructions|directions|prompts)/ig, "")
+    .replace(/you are (now )?a/ig, "")
+    .replace(/```/g, "")
+    .trim();
+
+  const question = rawQuestion || "What should the CEO do this week?";
   const fallback = getRevenuePulseCopilotResponse(question);
   const openAIKey = getOpenAIKey();
 
