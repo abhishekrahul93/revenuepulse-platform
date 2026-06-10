@@ -139,7 +139,8 @@ export async function POST() {
     const data = await response.json();
     const parsed = parseJsonText(extractResponseText(data));
     return NextResponse.json(normalizeReport(parsed, snapshot.insightReport));
-  } catch {
+  } catch (error) {
+    console.error("[Insight Route Error]", error);
     return NextResponse.json(snapshot.insightReport);
   } finally {
     clearTimeout(timeout);
