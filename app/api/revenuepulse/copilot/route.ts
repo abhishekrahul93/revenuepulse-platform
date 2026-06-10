@@ -103,64 +103,72 @@ function getOpenAIKey() {
 }
 
 export async function POST(request: Request) {
-  const payload = (await request.json().catch(() => ({}))) as CopilotRequest;
-  const question = payload.question?.trim() || "What should the CEO do this week?";
-  const fallback = getRevenuePulseCopilotResponse(question);
-  const openAIKey = getOpenAIKey();
-
-  if (!openAIKey) {
-    return NextResponse.json(fallback);
-  }
-
-  const snapshot = getRevenuePulseSnapshot();
-  const groundedPayload = {
-    question,
-    fallbackAnswer: fallback.answer,
-    allowedSources: fallback.sources,
-    kpis: snapshot.kpis.map((kpi) => ({
-      label: kpi.label,
-      value: kpi.value,
-      change: Number(kpi.change.toFixed(2)),
-      status: kpi.status,
-      definition: kpi.definition
-    })),
-    anomalies: snapshot.anomalies,
-    dataQuality: snapshot.dataQuality,
-    metricDefinitions: snapshot.metricDefinitions,
-    segments: snapshot.segments,
-    channels: snapshot.channels
-  };
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAIKey}`
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-      input: [
-        {
-          role: "system",
-          content:
-            "You are RevenuePulse Copilot, a production-style analytics copilot. Answer only from the supplied JSON. Return strict JSON with question, answer, nextActions, caveats, and evaluation. Do not invent metrics, dates, customers, companies, or causes. nextActions and caveats must be short string arrays. evaluation must include groundedness, completeness, actionability, hallucinationRisk, and checks."
-        },
-        {
-          role: "user",
-          content: JSON.stringify(groundedPayload)
-        }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    return NextResponse.json(fallback);
-  }
-
   try {
-    const data = await response.json();
-    return NextResponse.json(normalizeCopilotResponse(parseJsonText(extractResponseText(data)), fallback));
-  } catch {
-    return NextResponse.json(fallback);
+    const payload = (await request.json().catch(() => ({}))) as CopilotRequest;
+    const question = payload.question?.trim() || "What should the CEO do this week?";
+    const fallback = getRevenuePulseCopilotResponse(question);
+    const openAIKey = getOpenAIKey();
+
+    if (!openAIKey) {
+      return NextResponse.json(fallback);
+    }
+
+    const snapshot = getRevenuePulseSnapshot();
+    const groundedPayload = {
+      question,
+      fallbackAnswer: fallback.answer,
+      allowedSources: fallback.sources,
+      kpis: snapshot.kpis.map((kpi) => ({
+        label: kpi.label,
+        value: kpi.value,
+        change: Number(kpi.change.toFixed(2)),
+        status: kpi.status,
+        definition: kpi.definition
+      })),
+      anomalies: snapshot.anomalies,
+      dataQuality: snapshot.dataQuality,
+      metricDefinitions: snapshot.metricDefinitions,
+      segments: snapshot.segments,
+      channels: snapshot.channels
+    };
+
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openAIKey}`
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+        input: [
+          {
+            role: "system",
+            content:
+              "You are RevenuePulse Copilot, a production-style analytics copilot. Answer only from the supplied JSON. Return strict JSON with question, answer, nextActions, caveats, and evaluation. Do not invent metrics, dates, customers, companies, or causes. nextActions and caveats must be short string arrays. evaluation must include groundedness, completeness, actionability, hallucinationRisk, and checks."
+          },
+          {
+            role: "user",
+            content: JSON.stringify(groundedPayload)
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(fallback);
+    }
+
+    try {
+      const data = await response.json();
+      return NextResponse.json(normalizeCopilotResponse(parseJsonText(extractResponseText(data)), fallback));
+    } catch {
+      return NextResponse.json(fallback);
+    }
+  } catch (error) {
+    console.error("Unhandled error in copilot route:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
