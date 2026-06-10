@@ -1,50 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { NextResponse } from "next/server";
 import { getRevenuePulseSnapshot, type InsightReport } from "@/lib/revenuepulse";
-
-function extractResponseText(data: {
-  output_text?: string;
-  output?: Array<{
-    content?: Array<{
-      text?: string;
-    }>;
-  }>;
-}) {
-  if (data.output_text) {
-    return data.output_text;
-  }
-
-  return data.output?.flatMap((item) => item.content || []).find((content) => content.text)?.text || "";
-}
-
-function parseJsonText(content: string) {
-  const cleaned = content
-    .trim()
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "");
-
-  return JSON.parse(cleaned) as Omit<InsightReport, "source">;
-}
-
-function toList(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => toList(item));
-  }
-
-  if (typeof value === "string") {
-    return [value];
-  }
-
-  if (value && typeof value === "object") {
-    return Object.entries(value as Record<string, unknown>).flatMap(([key, item]) =>
-      toList(item).map((detail) => `${key}: ${detail}`)
-    );
-  }
-
-  return [];
-}
+import { extractResponseText, parseJsonText, toList, getOpenAIKey } from "@/lib/utils";
 
 function normalizeReport(parsed: Partial<Omit<InsightReport, "source">>, fallback: InsightReport): InsightReport {
   const findings = toList(parsed.findings).slice(0, 8);
@@ -60,26 +16,6 @@ function normalizeReport(parsed: Partial<Omit<InsightReport, "source">>, fallbac
     risks: risks.length ? risks : fallback.risks,
     source: "openai"
   };
-}
-
-function getOpenAIKey() {
-  if (process.env.NODE_ENV === "production") {
-    return process.env.OPENAI_API_KEY || "";
-  }
-
-  const envPath = join(process.cwd(), ".env.local");
-  if (existsSync(envPath)) {
-    const line = readFileSync(envPath, "utf8")
-      .split(/\r?\n/)
-      .find((item) => item.startsWith("OPENAI_API_KEY="));
-
-    const localKey = line?.replace("OPENAI_API_KEY=", "").trim();
-    if (localKey) {
-      return localKey;
-    }
-  }
-
-  return process.env.OPENAI_API_KEY || "";
 }
 
 export async function POST() {
@@ -137,7 +73,7 @@ export async function POST() {
     }
 
     const data = await response.json();
-    const parsed = parseJsonText(extractResponseText(data));
+    const parsed = parseJsonText<Omit<InsightReport, "source">>(extractResponseText(data));
     return NextResponse.json(normalizeReport(parsed, snapshot.insightReport));
   } catch {
     return NextResponse.json(snapshot.insightReport);

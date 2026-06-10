@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { NextResponse } from "next/server";
 import {
   getRevenuePulseCopilotResponse,
@@ -7,53 +5,11 @@ import {
   type CopilotEvaluation,
   type CopilotResponse
 } from "@/lib/revenuepulse";
+import { extractResponseText, parseJsonText, toList, getOpenAIKey } from "@/lib/utils";
 
 type CopilotRequest = {
   question?: string;
 };
-
-function extractResponseText(data: {
-  output_text?: string;
-  output?: Array<{
-    content?: Array<{
-      text?: string;
-    }>;
-  }>;
-}) {
-  if (data.output_text) {
-    return data.output_text;
-  }
-
-  return data.output?.flatMap((item) => item.content || []).find((content) => content.text)?.text || "";
-}
-
-function parseJsonText(content: string) {
-  const cleaned = content
-    .trim()
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "");
-
-  return JSON.parse(cleaned) as Partial<CopilotResponse>;
-}
-
-function toList(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => toList(item));
-  }
-
-  if (typeof value === "string") {
-    return [value];
-  }
-
-  if (value && typeof value === "object") {
-    return Object.entries(value as Record<string, unknown>).flatMap(([key, item]) =>
-      toList(item).map((detail) => `${key}: ${detail}`)
-    );
-  }
-
-  return [];
-}
 
 function clampScore(value: unknown, fallback: number) {
   if (typeof value !== "number" || Number.isNaN(value)) return fallback;
@@ -80,26 +36,6 @@ function normalizeCopilotResponse(parsed: Partial<CopilotResponse>, fallback: Co
     evaluation: normalizeEvaluation(parsed.evaluation, fallback.evaluation),
     source: "openai"
   };
-}
-
-function getOpenAIKey() {
-  if (process.env.NODE_ENV === "production") {
-    return process.env.OPENAI_API_KEY || "";
-  }
-
-  const envPath = join(process.cwd(), ".env.local");
-  if (existsSync(envPath)) {
-    const line = readFileSync(envPath, "utf8")
-      .split(/\r?\n/)
-      .find((item) => item.startsWith("OPENAI_API_KEY="));
-
-    const localKey = line?.replace("OPENAI_API_KEY=", "").trim();
-    if (localKey) {
-      return localKey;
-    }
-  }
-
-  return process.env.OPENAI_API_KEY || "";
 }
 
 export async function POST(request: Request) {
@@ -159,7 +95,7 @@ export async function POST(request: Request) {
 
   try {
     const data = await response.json();
-    return NextResponse.json(normalizeCopilotResponse(parseJsonText(extractResponseText(data)), fallback));
+    return NextResponse.json(normalizeCopilotResponse(parseJsonText<Partial<CopilotResponse>>(extractResponseText(data)), fallback));
   } catch {
     return NextResponse.json(fallback);
   }
