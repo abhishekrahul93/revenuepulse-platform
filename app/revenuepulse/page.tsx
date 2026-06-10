@@ -97,7 +97,8 @@ export default function RevenuePulsePage() {
       setReport(nextReport);
       setReportState("ready");
       revealGeneratedReport();
-    } catch {
+    } catch (error) {
+      console.error("[Page Report Error]", error);
       setReport(snapshot.insightReport);
       setReportState("error");
       revealGeneratedReport();
@@ -126,7 +127,8 @@ export default function RevenuePulsePage() {
 
       setCopilotResponse(result);
       setCopilotState("ready");
-    } catch {
+    } catch (error) {
+      console.error("[Page Copilot Error]", error);
       setCopilotState("error");
     }
   }
