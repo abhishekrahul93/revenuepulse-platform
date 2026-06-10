@@ -160,7 +160,8 @@ export async function POST(request: Request) {
   try {
     const data = await response.json();
     return NextResponse.json(normalizeCopilotResponse(parseJsonText(extractResponseText(data)), fallback));
-  } catch {
+  } catch (error) {
+    console.error("Copilot response parsing error:", error);
     return NextResponse.json(fallback);
   }
 }
