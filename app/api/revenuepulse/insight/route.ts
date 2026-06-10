@@ -105,37 +105,43 @@ export async function POST() {
     channels: snapshot.channels
   };
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAIKey}`
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-      input: [
-        {
-          role: "system",
-          content:
-            "You are a senior analytics manager writing a concise stakeholder report. Use only the supplied RevenuePulse metrics, anomaly notes, and data-quality checks. Return strict JSON with title, generatedAt, executiveSummary, findings, decisions, and risks. findings, decisions, and risks must each be a short string array, not nested objects. Do not invent numbers, company names, or causes."
-        },
-        {
-          role: "user",
-          content: JSON.stringify(groundedPayload)
-        }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    return NextResponse.json(snapshot.insightReport);
-  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openAIKey}`
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+        input: [
+          {
+            role: "system",
+            content:
+              "You are a senior analytics manager writing a concise stakeholder report. Use only the supplied RevenuePulse metrics, anomaly notes, and data-quality checks. Return strict JSON with title, generatedAt, executiveSummary, findings, decisions, and risks. findings, decisions, and risks must each be a short string array, not nested objects. Do not invent numbers, company names, or causes."
+          },
+          {
+            role: "user",
+            content: JSON.stringify(groundedPayload)
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(snapshot.insightReport);
+    }
+
     const data = await response.json();
     const parsed = parseJsonText(extractResponseText(data));
     return NextResponse.json(normalizeReport(parsed, snapshot.insightReport));
   } catch {
     return NextResponse.json(snapshot.insightReport);
+  } finally {
+    clearTimeout(timeout);
   }
 }

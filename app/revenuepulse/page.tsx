@@ -49,6 +49,8 @@ export default function RevenuePulsePage() {
   const [activeView, setActiveView] = useState<"overview" | "quality" | "definitions">("overview");
   const [report, setReport] = useState<InsightReport>(snapshot.insightReport);
   const [reportState, setReportState] = useState<ReportState>("idle");
+  const [reportGeneratedAt, setReportGeneratedAt] = useState<string | null>(null);
+  const [reportFlash, setReportFlash] = useState(false);
   const [copilotQuestion, setCopilotQuestion] = useState(snapshot.copilotQuestions[0].question);
   const [copilotResponse, setCopilotResponse] = useState<CopilotResponse>(getRevenuePulseCopilotResponse(snapshot.copilotQuestions[0].question));
   const [copilotState, setCopilotState] = useState<CopilotState>("idle");
@@ -57,22 +59,48 @@ export default function RevenuePulsePage() {
   const latest = snapshot.monthlyMetrics[snapshot.monthlyMetrics.length - 1];
   const previous = snapshot.monthlyMetrics[snapshot.monthlyMetrics.length - 2];
 
+  function scrollToSection(id: string) {
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function openWorkspaceView(view: "overview" | "quality" | "definitions") {
+    setActiveView(view);
+    scrollToSection("rp-workflow");
+  }
+
+  function revealGeneratedReport() {
+    setReportGeneratedAt(new Date().toISOString());
+    setReportFlash(true);
+    scrollToSection("rp-report");
+    window.setTimeout(() => setReportFlash(false), 2600);
+  }
+
   async function refreshInsightReport() {
     setReportState("loading");
+    setReportGeneratedAt(null);
+    setReportFlash(true);
+    scrollToSection("rp-report");
 
     try {
       const response = await fetch("/api/revenuepulse/insight", { method: "POST" });
       const nextReport = (await response.json()) as InsightReport;
 
       if (!response.ok) {
+        setReport(snapshot.insightReport);
         setReportState("error");
+        revealGeneratedReport();
         return;
       }
 
       setReport(nextReport);
       setReportState("ready");
+      revealGeneratedReport();
     } catch {
+      setReport(snapshot.insightReport);
       setReportState("error");
+      revealGeneratedReport();
     }
   }
 
@@ -117,7 +145,7 @@ export default function RevenuePulsePage() {
           <a href="#rp-dashboard">Dashboard</a>
           <a href="#rp-copilot">AI Copilot</a>
           <a href="#rp-report">Insight Report</a>
-          <button type="button" onClick={() => setActiveView("definitions")}>Metric Layer</button>
+          <button type="button" onClick={() => openWorkspaceView("definitions")}>Metric Layer</button>
         </div>
       </nav>
 
@@ -133,7 +161,7 @@ export default function RevenuePulsePage() {
             <a className="rp-primary-link" href="#rp-dashboard">View live dashboard</a>
             <a className="rp-secondary-link" href="#rp-copilot">Ask AI copilot</a>
             <button type="button" onClick={() => void refreshInsightReport()} disabled={reportState === "loading"}>
-              {reportState === "loading" ? "Generating..." : "Generate report"}
+              {reportState === "loading" ? "Generating..." : "Generate stakeholder report"}
             </button>
           </div>
           <div className="rp-proof-row" aria-label="RevenuePulse capabilities">
@@ -182,6 +210,35 @@ export default function RevenuePulsePage() {
         </div>
       </section>
 
+      <section className="rp-demo-flow" aria-label="How to use RevenuePulse">
+        <div className="rp-demo-flow-copy">
+          <p className="eyebrow">How to use this demo</p>
+          <h2>Follow the same workflow a growth analyst would present to leadership.</h2>
+        </div>
+        <div className="rp-flow-steps">
+          <a href="#rp-dashboard">
+            <span>01</span>
+            <strong>Review KPIs</strong>
+            <small>MRR, ARR, churn, CAC, LTV, activation, and ROI.</small>
+          </a>
+          <button type="button" onClick={() => openWorkspaceView("quality")}>
+            <span>02</span>
+            <strong>Check trust layer</strong>
+            <small>Inspect anomaly, freshness, duplicate, and tracking checks.</small>
+          </button>
+          <a href="#rp-copilot">
+            <span>03</span>
+            <strong>Ask AI copilot</strong>
+            <small>Get grounded answers, sources, caveats, and next actions.</small>
+          </a>
+          <button type="button" onClick={() => void refreshInsightReport()} disabled={reportState === "loading"}>
+            <span>04</span>
+            <strong>{reportState === "loading" ? "Generating..." : "Generate report"}</strong>
+            <small>Turn the analysis into a stakeholder-ready decision brief.</small>
+          </button>
+        </div>
+      </section>
+
       <section id="rp-dashboard" className="rp-kpi-grid" aria-label="RevenuePulse KPI summary">
         {snapshot.kpis.map((kpi) => (
           <article className="rp-kpi-card" key={kpi.label}>
@@ -199,7 +256,7 @@ export default function RevenuePulsePage() {
         ))}
       </section>
 
-      <section className="rp-workspace">
+      <section id="rp-workflow" className="rp-workspace">
         <aside className="rp-sidebar" aria-label="RevenuePulse workflow controls">
           <div>
             <p className="eyebrow">Workflow</p>
@@ -219,9 +276,9 @@ export default function RevenuePulsePage() {
             <span>{snapshot.companyContext.audience}</span>
           </div>
           <button className="rp-primary-action" type="button" onClick={() => void refreshInsightReport()} disabled={reportState === "loading"}>
-            {reportState === "loading" ? "Generating..." : "Generate Insight Report"}
+            {reportState === "loading" ? "Generating..." : "Generate Stakeholder Report"}
           </button>
-          <p className="rp-helper">Report generation is grounded in the visible metrics, anomalies, and quality checks. It falls back locally when no AI key is configured.</p>
+          <p className="rp-helper">Use the tabs to inspect evidence, ask the copilot, then generate a leadership brief grounded in the visible metrics and quality checks.</p>
         </aside>
 
         <section className="rp-main-panel">
@@ -499,13 +556,17 @@ export default function RevenuePulsePage() {
             </div>
           </section>
 
-          <section id="rp-report" className="rp-report">
+          <section id="rp-report" className={`rp-report ${reportFlash ? "rp-report-flash" : ""}`}>
             <div className="rp-section-heading">
               <div>
                 <p className="eyebrow">{report.source === "openai" ? "AI-generated" : "Grounded demo engine"}</p>
                 <h2>{report.title}</h2>
               </div>
-              <span>{reportState === "ready" ? "Refreshed" : reportState === "error" ? "Fallback shown" : "Ready"}</span>
+              <span aria-live="polite">{reportState === "loading" ? "Generating..." : reportState === "ready" ? "Generated" : reportState === "error" ? "Fallback shown" : "Ready"}</span>
+            </div>
+            <div className="rp-report-meta" aria-live="polite">
+              <span>{report.source === "openai" ? "OpenAI generation" : "Grounded fallback engine"}</span>
+              <span>{reportState === "loading" ? "Generating stakeholder brief..." : reportGeneratedAt ? `Generated ${formatDate(reportGeneratedAt)}` : "Click Generate report to refresh this stakeholder brief."}</span>
             </div>
             <p className="rp-report-summary">{report.executiveSummary}</p>
             <div className="rp-report-grid">
