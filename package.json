@@ -19,11 +19,15 @@
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
+    "jest": "^30.4.2",
+    "node-mocks-http": "^1.17.2",
+    "ts-jest": "^29.4.11",
     "typescript": "latest"
   }
 }
