@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { NextResponse } from "next/server";
 import {
@@ -82,31 +82,43 @@ function normalizeCopilotResponse(parsed: Partial<CopilotResponse>, fallback: Co
   };
 }
 
-function getOpenAIKey() {
+let cachedOpenAIKey: string | null = null;
+
+async function getOpenAIKey() {
+  if (cachedOpenAIKey !== null) {
+    return cachedOpenAIKey;
+  }
+
   if (process.env.NODE_ENV === "production") {
-    return process.env.OPENAI_API_KEY || "";
+    cachedOpenAIKey = process.env.OPENAI_API_KEY || "";
+    return cachedOpenAIKey;
   }
 
   const envPath = join(process.cwd(), ".env.local");
-  if (existsSync(envPath)) {
-    const line = readFileSync(envPath, "utf8")
+  try {
+    const content = await readFile(envPath, "utf8");
+    const line = content
       .split(/\r?\n/)
       .find((item) => item.startsWith("OPENAI_API_KEY="));
 
     const localKey = line?.replace("OPENAI_API_KEY=", "").trim();
     if (localKey) {
-      return localKey;
+      cachedOpenAIKey = localKey;
+      return cachedOpenAIKey;
     }
+  } catch {
+    // File missing or unreadable
   }
 
-  return process.env.OPENAI_API_KEY || "";
+  cachedOpenAIKey = process.env.OPENAI_API_KEY || "";
+  return cachedOpenAIKey;
 }
 
 export async function POST(request: Request) {
   const payload = (await request.json().catch(() => ({}))) as CopilotRequest;
   const question = payload.question?.trim() || "What should the CEO do this week?";
   const fallback = getRevenuePulseCopilotResponse(question);
-  const openAIKey = getOpenAIKey();
+  const openAIKey = await getOpenAIKey();
 
   if (!openAIKey) {
     return NextResponse.json(fallback);
