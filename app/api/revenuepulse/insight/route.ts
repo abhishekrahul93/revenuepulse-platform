@@ -83,65 +83,73 @@ function getOpenAIKey() {
 }
 
 export async function POST() {
-  const snapshot = getRevenuePulseSnapshot();
-  const openAIKey = getOpenAIKey();
-
-  if (!openAIKey) {
-    return NextResponse.json(snapshot.insightReport);
-  }
-
-  const groundedPayload = {
-    companyContext: snapshot.companyContext,
-    kpis: snapshot.kpis.map((kpi) => ({
-      label: kpi.label,
-      value: kpi.value,
-      change: Number(kpi.change.toFixed(2)),
-      status: kpi.status,
-      definition: kpi.definition
-    })),
-    anomalies: snapshot.anomalies,
-    dataQuality: snapshot.dataQuality,
-    segments: snapshot.segments,
-    channels: snapshot.channels
-  };
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openAIKey}`
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-        input: [
-          {
-            role: "system",
-            content:
-              "You are a senior analytics manager writing a concise stakeholder report. Use only the supplied RevenuePulse metrics, anomaly notes, and data-quality checks. Return strict JSON with title, generatedAt, executiveSummary, findings, decisions, and risks. findings, decisions, and risks must each be a short string array, not nested objects. Do not invent numbers, company names, or causes."
-          },
-          {
-            role: "user",
-            content: JSON.stringify(groundedPayload)
-          }
-        ]
-      })
-    });
+    const snapshot = getRevenuePulseSnapshot();
+    const openAIKey = getOpenAIKey();
 
-    if (!response.ok) {
+    if (!openAIKey) {
       return NextResponse.json(snapshot.insightReport);
     }
 
-    const data = await response.json();
-    const parsed = parseJsonText(extractResponseText(data));
-    return NextResponse.json(normalizeReport(parsed, snapshot.insightReport));
-  } catch {
-    return NextResponse.json(snapshot.insightReport);
-  } finally {
-    clearTimeout(timeout);
+    const groundedPayload = {
+      companyContext: snapshot.companyContext,
+      kpis: snapshot.kpis.map((kpi) => ({
+        label: kpi.label,
+        value: kpi.value,
+        change: Number(kpi.change.toFixed(2)),
+        status: kpi.status,
+        definition: kpi.definition
+      })),
+      anomalies: snapshot.anomalies,
+      dataQuality: snapshot.dataQuality,
+      segments: snapshot.segments,
+      channels: snapshot.channels
+    };
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openAIKey}`
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+          input: [
+            {
+              role: "system",
+              content:
+                "You are a senior analytics manager writing a concise stakeholder report. Use only the supplied RevenuePulse metrics, anomaly notes, and data-quality checks. Return strict JSON with title, generatedAt, executiveSummary, findings, decisions, and risks. findings, decisions, and risks must each be a short string array, not nested objects. Do not invent numbers, company names, or causes."
+            },
+            {
+              role: "user",
+              content: JSON.stringify(groundedPayload)
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        return NextResponse.json(snapshot.insightReport);
+      }
+
+      const data = await response.json();
+      const parsed = parseJsonText(extractResponseText(data));
+      return NextResponse.json(normalizeReport(parsed, snapshot.insightReport));
+    } catch {
+      return NextResponse.json(snapshot.insightReport);
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (error) {
+    console.error("Unhandled error in insight route:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
