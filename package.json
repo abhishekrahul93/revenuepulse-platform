@@ -19,11 +19,20 @@
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "cross-fetch": "^4.1.0",
     "eslint": "latest",
     "eslint-config-next": "latest",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
+    "node-mocks-http": "^1.17.2",
+    "text-encoding": "^0.7.0",
+    "ts-jest": "^29.4.11",
     "typescript": "latest"
   }
 }
