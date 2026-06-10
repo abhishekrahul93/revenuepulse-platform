@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { promises as fsPromises } from "node:fs";
 import { join } from "node:path";
 import { NextResponse } from "next/server";
 import { getRevenuePulseSnapshot, type InsightReport } from "@/lib/revenuepulse";
@@ -62,29 +62,46 @@ function normalizeReport(parsed: Partial<Omit<InsightReport, "source">>, fallbac
   };
 }
 
-function getOpenAIKey() {
+let cachedOpenAIKey: string | null = null;
+let openAIKeyPromise: Promise<string> | null = null;
+
+async function getOpenAIKeyAsync() {
   if (process.env.NODE_ENV === "production") {
     return process.env.OPENAI_API_KEY || "";
   }
 
-  const envPath = join(process.cwd(), ".env.local");
-  if (existsSync(envPath)) {
-    const line = readFileSync(envPath, "utf8")
-      .split(/\r?\n/)
-      .find((item) => item.startsWith("OPENAI_API_KEY="));
-
-    const localKey = line?.replace("OPENAI_API_KEY=", "").trim();
-    if (localKey) {
-      return localKey;
-    }
+  if (cachedOpenAIKey !== null) {
+    return cachedOpenAIKey;
   }
 
-  return process.env.OPENAI_API_KEY || "";
+  if (!openAIKeyPromise) {
+    openAIKeyPromise = (async () => {
+      try {
+        const envPath = join(process.cwd(), ".env.local");
+        const content = await fsPromises.readFile(envPath, "utf8");
+        const line = content
+          .split(/\r?\n/)
+          .find((item) => item.startsWith("OPENAI_API_KEY="));
+
+        const localKey = line?.replace("OPENAI_API_KEY=", "").trim();
+        if (localKey) {
+          cachedOpenAIKey = localKey;
+          return localKey;
+        }
+      } catch {
+        // Ignored, file might not exist
+      }
+      cachedOpenAIKey = process.env.OPENAI_API_KEY || "";
+      return cachedOpenAIKey;
+    })();
+  }
+
+  return openAIKeyPromise;
 }
 
 export async function POST() {
   const snapshot = getRevenuePulseSnapshot();
-  const openAIKey = getOpenAIKey();
+  const openAIKey = await getOpenAIKeyAsync();
 
   if (!openAIKey) {
     return NextResponse.json(snapshot.insightReport);
